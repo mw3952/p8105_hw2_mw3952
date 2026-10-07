@@ -1,5 +1,5 @@
 ---
-title: "p8105_hw2_mw3952.Rmd"
+title: "P8105 Homework 2"
 author: "Meher Walia"
 date: "2026-10-07"
 output: github_document
@@ -7,63 +7,9 @@ output: github_document
 
 ```{r setup, message = FALSE}
 library(tidyverse)
+library(readxl)
 ```
-
-## Problem 1
-
-```{r}
-nyc_transit_df = 
-  read_csv("./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") |> 
-  janitor::clean_names() |> 
-  select(
-    line, station_name, station_latitude, station_longitude,
-    route1:route11, entry, vending, entrance_type, ada) |> 
-  mutate(
-    entry = case_match(entry, "YES" ~ TRUE, "NO" ~ FALSE))
-
-nyc_transit_df
-```
-
-list.files("./data")
-
-# how many distinct stations
-nyc_transit_df |> 
-  distinct(line, station_name) |> 
-  nrow()
-
-# how many are ADA compliant
-nyc_transit_df |> 
-  filter(ada) |> 
-  distinct(line, station_name) |> 
-  nrow()
-
-# proportion of non-vending entrances that allow entry
-nyc_transit_df |> 
-  filter(vending == "NO") |> 
-  pull(entry) |> 
-  mean()
   
-  nyc_transit_tidy_df = 
-  nyc_transit_df |> 
-  mutate(across(route1:route11, as.character)) |> 
-  pivot_longer(
-    route1:route11,
-    names_to = "route_number",
-    names_prefix = "route",
-    values_to = "route_name") |> 
-  drop_na(route_name)
-
-nyc_transit_tidy_df |> 
-  filter(route_name == "A") |> 
-  distinct(line, station_name) |> 
-  nrow()
-
-nyc_transit_tidy_df |> 
-  filter(route_name == "A", ada) |> 
-  distinct(line, station_name) |> 
-  nrow()
-  
-  ## Problem 1
 ## Problem 1
 
 ```{r}
@@ -141,4 +87,70 @@ nyc_transit_tidy_df |>
 
 After reformatting so that route number and route name are separate variables,
 60 distinct stations serve the A train. Of those, 17 are ADA compliant.
+  
+  ## Problem 2
 
+```{r}
+clean_trash = function(df, wheel_label) {
+  df |> 
+    janitor::clean_names() |> 
+    filter(!is.na(dumpster)) |> 
+    mutate(
+      across(any_of(c("dumpster", "year", "weight_tons", "volume_cubic_yards",
+                      "plastic_bottles", "polystyrene", "cigarette_butts",
+                      "glass_bottles", "plastic_bags", "wrappers",
+                      "sports_balls", "homes_powered")),
+             ~ suppressWarnings(as.numeric(.x))),
+      trash_wheel = wheel_label)
+}
+
+trash_path = "./data/202610 Trash Wheel Collection Data.xlsx"
+
+mr_trash_df = 
+  read_excel(trash_path, sheet = "Mr. Trash Wheel", range = cell_cols("A:N")) |> 
+  clean_trash("Mr. Trash Wheel") |> 
+  mutate(sports_balls = as.integer(round(sports_balls)))
+
+professor_trash_df = 
+  read_excel(trash_path, sheet = "Professor Trash Wheel", range = cell_cols("A:N")) |> 
+  clean_trash("Professor Trash Wheel")
+
+gwynnda_trash_df = 
+  read_excel(trash_path, sheet = "Gwynnda the Good Wheel of the W", range = cell_cols("A:N")) |> 
+  clean_trash("Gwynnda")
+
+trash_wheel_df = 
+  bind_rows(mr_trash_df, professor_trash_df, gwynnda_trash_df) |> 
+  select(-starts_with("x")) |> 
+  relocate(trash_wheel)
+```
+
+These data record each dumpster of trash collected by three water wheels in
+the Baltimore harbor. Each row is one dumpster, identified by the
+`trash_wheel` that collected it, its `dumpster` number, and the `month`,
+`year`, and `date` of collection. The remaining variables measure what was
+collected: the total `weight_tons` and `volume_cubic_yards`, counts of
+specific items such as `plastic_bottles`, `cigarette_butts`, `wrappers`, and
+`sports_balls`, and the number of `homes_powered` by the resulting energy.
+For each sheet I read only columns A through N to exclude the note columns,
+dropped rows without a dumpster number, coerced the count variables to
+numeric, and added a variable identifying the wheel; for Mr. Trash Wheel I
+also rounded sports balls to the nearest integer. Combining the three sheets
+gives `r nrow(trash_wheel_df)` observations across
+`r ncol(trash_wheel_df)` variables. Not every wheel tracks every item, so
+columns like `sports_balls` are missing for the wheels that do not record them.
+
+```{r}
+trash_wheel_df |> 
+  filter(trash_wheel == "Professor Trash Wheel") |> 
+  pull(weight_tons) |> 
+  sum(na.rm = TRUE)
+
+trash_wheel_df |> 
+  filter(trash_wheel == "Gwynnda", year == 2022, month == "June") |> 
+  pull(cigarette_butts) |> 
+  sum(na.rm = TRUE)
+```
+
+Across the available data, Professor Trash Wheel collected a total of 294.96
+tons of trash. Gwynnda collected 18,120 cigarette butts in June of 2022.
