@@ -1,0 +1,144 @@
+---
+title: "p8105_hw2_mw3952.Rmd"
+author: "Meher Walia"
+date: "2026-10-07"
+output: github_document
+---
+
+```{r setup, message = FALSE}
+library(tidyverse)
+```
+
+## Problem 1
+
+```{r}
+nyc_transit_df = 
+  read_csv("./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") |> 
+  janitor::clean_names() |> 
+  select(
+    line, station_name, station_latitude, station_longitude,
+    route1:route11, entry, vending, entrance_type, ada) |> 
+  mutate(
+    entry = case_match(entry, "YES" ~ TRUE, "NO" ~ FALSE))
+
+nyc_transit_df
+```
+
+list.files("./data")
+
+# how many distinct stations
+nyc_transit_df |> 
+  distinct(line, station_name) |> 
+  nrow()
+
+# how many are ADA compliant
+nyc_transit_df |> 
+  filter(ada) |> 
+  distinct(line, station_name) |> 
+  nrow()
+
+# proportion of non-vending entrances that allow entry
+nyc_transit_df |> 
+  filter(vending == "NO") |> 
+  pull(entry) |> 
+  mean()
+  
+  nyc_transit_tidy_df = 
+  nyc_transit_df |> 
+  mutate(across(route1:route11, as.character)) |> 
+  pivot_longer(
+    route1:route11,
+    names_to = "route_number",
+    names_prefix = "route",
+    values_to = "route_name") |> 
+  drop_na(route_name)
+
+nyc_transit_tidy_df |> 
+  filter(route_name == "A") |> 
+  distinct(line, station_name) |> 
+  nrow()
+
+nyc_transit_tidy_df |> 
+  filter(route_name == "A", ada) |> 
+  distinct(line, station_name) |> 
+  nrow()
+  
+  ## Problem 1
+## Problem 1
+
+```{r}
+nyc_transit_df = 
+  read_csv("./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") |> 
+  janitor::clean_names() |> 
+  select(
+    line, station_name, station_latitude, station_longitude,
+    route1:route11, entry, vending, entrance_type, ada) |> 
+  mutate(
+    across(route1:route11, as.character),
+    entry = case_match(entry, "YES" ~ TRUE, "NO" ~ FALSE))
+```
+
+These data describe every entrance and exit to the NYC subway system, with
+one row per entrance rather than per station. The variables I retained
+identify the station (`line`, `station_name`, and the station's latitude and
+longitude), the routes it serves (`route1` through `route11`), and
+characteristics of the entrance itself: whether it allows `entry`, whether
+there is a `vending` machine, the `entrance_type` (stair, elevator, escalator,
+door, and so on), and whether the station is `ada` compliant. My cleaning
+steps were to read in the CSV, convert the variable names to lower snake case
+with `janitor::clean_names()`, select the variables listed above, coerce the
+route columns to character so they share a type, and convert `entry` from the
+character values "YES" and "NO" to a logical variable using `case_match()`.
+The resulting dataset has `r nrow(nyc_transit_df)` rows and
+`r ncol(nyc_transit_df)` columns.
+
+These data are not tidy. The eleven route columns hold the same kind of
+information spread across many columns, so a single variable (the route served)
+is stored in eleven places rather than one. Most of these columns are also
+empty for most entrances, since few stations serve more than two or three
+routes.
+
+```{r}
+nyc_transit_df |> 
+  distinct(line, station_name) |> 
+  nrow()
+
+nyc_transit_df |> 
+  filter(ada) |> 
+  distinct(line, station_name) |> 
+  nrow()
+
+nyc_transit_df |> 
+  filter(vending == "NO") |> 
+  pull(entry) |> 
+  mean()
+```
+
+There are 465 distinct stations, identified by the combination of station name
+and line. Of these, 84 are ADA compliant. Among entrances without a vending
+machine, about 37.7% allow entry.
+
+```{r}
+nyc_transit_tidy_df = 
+  nyc_transit_df |> 
+  pivot_longer(
+    route1:route11,
+    names_to = "route_number",
+    names_prefix = "route",
+    values_to = "route_name") |> 
+  drop_na(route_name)
+
+nyc_transit_tidy_df |> 
+  filter(route_name == "A") |> 
+  distinct(line, station_name) |> 
+  nrow()
+
+nyc_transit_tidy_df |> 
+  filter(route_name == "A", ada) |> 
+  distinct(line, station_name) |> 
+  nrow()
+```
+
+After reformatting so that route number and route name are separate variables,
+60 distinct stations serve the A train. Of those, 17 are ADA compliant.
+
